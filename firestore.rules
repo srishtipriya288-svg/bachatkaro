@@ -1,0 +1,335 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 4.1: Global Safety Net — default deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Global Hardened Primitives
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidMonthKey(monthKey) {
+      return monthKey is string && monthKey.size() == 7 && monthKey.matches('^[0-9]{4}-[0-9]{2}$');
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.size() == 10 && dateStr.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function userExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function userExistsAfter(userId) {
+      return existsAfter(/databases/$(database)/documents/users/$(userId));
+    }
+
+    // =========================================================================
+    // Validation Blueprints (Anti-Update-Gap)
+    // =========================================================================
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+          'uid',
+          'displayName',
+          'email',
+          'city',
+          'livingType',
+          'onboardingComplete',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'email',
+          'city',
+          'livingType',
+          'onboardingComplete',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.uid is string
+        && data.uid == request.auth.uid
+        && data.uid == userId
+        && isValidId(data.uid)
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 100
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 200
+        && data.city is string
+        && data.city.size() >= 1
+        && data.city.size() <= 60
+        && data.livingType is string
+        && data.livingType.size() <= 20
+        && data.livingType in ['hostel', 'pg', 'rented_flat', 'home']
+        && data.onboardingComplete is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCategoryLimits(limits) {
+      return limits is map
+        && limits.keys().hasAll(['food', 'transport', 'study', 'hostel', 'social', 'shopping', 'misc'])
+        && limits.keys().hasOnly(['food', 'transport', 'study', 'hostel', 'social', 'shopping', 'misc'])
+        && limits.food is number && limits.food >= 0 && limits.food <= 500000
+        && limits.transport is number && limits.transport >= 0 && limits.transport <= 500000
+        && limits.study is number && limits.study >= 0 && limits.study <= 500000
+        && limits.hostel is number && limits.hostel >= 0 && limits.hostel <= 500000
+        && limits.social is number && limits.social >= 0 && limits.social <= 500000
+        && limits.shopping is number && limits.shopping >= 0 && limits.shopping <= 500000
+        && limits.misc is number && limits.misc >= 0 && limits.misc <= 500000;
+    }
+
+    function isValidMonthlyBudget(data, userId, monthId) {
+      return data.keys().hasAll([
+          'userId',
+          'monthKey',
+          'monthlyAllowance',
+          'fixedEssentials',
+          'savingsGoal',
+          'alertThresholdPct',
+          'categoryLimits',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId',
+          'monthKey',
+          'monthlyAllowance',
+          'fixedEssentials',
+          'savingsGoal',
+          'alertThresholdPct',
+          'categoryLimits',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.userId is string
+        && data.userId == request.auth.uid
+        && data.userId == userId
+        && isValidId(data.userId)
+        && isValidMonthKey(data.monthKey)
+        && data.monthKey == monthId
+        && data.monthlyAllowance is number
+        && data.monthlyAllowance >= 0
+        && data.monthlyAllowance <= 1000000
+        && data.fixedEssentials is number
+        && data.fixedEssentials >= 0
+        && data.fixedEssentials <= 1000000
+        && data.savingsGoal is number
+        && data.savingsGoal >= 0
+        && data.savingsGoal <= 1000000
+        && data.alertThresholdPct is number
+        && data.alertThresholdPct >= 50
+        && data.alertThresholdPct <= 100
+        && isValidCategoryLimits(data.categoryLimits)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidExpense(data, userId) {
+      return data.keys().hasAll([
+          'userId',
+          'monthKey',
+          'title',
+          'amount',
+          'category',
+          'paymentMethod',
+          'spendType',
+          'date',
+          'notes',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId',
+          'monthKey',
+          'title',
+          'amount',
+          'category',
+          'paymentMethod',
+          'spendType',
+          'date',
+          'notes',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.userId is string
+        && data.userId == request.auth.uid
+        && data.userId == userId
+        && isValidId(data.userId)
+        && isValidMonthKey(data.monthKey)
+        && data.title is string
+        && data.title.size() >= 1
+        && data.title.size() <= 80
+        && data.amount is number
+        && data.amount > 0
+        && data.amount <= 500000
+        && data.category is string
+        && data.category.size() <= 20
+        && data.category in ['food', 'transport', 'study', 'hostel', 'social', 'shopping', 'misc']
+        && data.paymentMethod is string
+        && data.paymentMethod.size() <= 10
+        && data.paymentMethod in ['upi', 'cash', 'card']
+        && data.spendType is string
+        && data.spendType.size() <= 20
+        && data.spendType in ['essential', 'discretionary']
+        && isValidDateString(data.date)
+        && data.date[0:7] == data.monthKey
+        && data.notes is string
+        && data.notes.size() <= 200
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // =========================================================================
+    // Collection: /users/{userId} (Private Profile & PII)
+    // =========================================================================
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Update Student Profile Preferences
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'city', 'livingType', 'onboardingComplete', 'updatedAt'])
+        );
+
+      allow delete: if false;
+
+      // =======================================================================
+      // Subcollection: /users/{userId}/budgets/{monthId}
+      // =======================================================================
+      match /budgets/{monthId} {
+        allow get: if isOwner(userId)
+          && isValidId(userId)
+          && isValidMonthKey(monthId)
+          && userExists(userId);
+
+        allow list: if isOwner(userId)
+          && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId)
+          && isValidId(userId)
+          && isValidMonthKey(monthId)
+          && isValidMonthlyBudget(incoming(), userId, monthId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userExistsAfter(userId);
+
+        allow update: if isOwner(userId)
+          && isValidId(userId)
+          && isValidMonthKey(monthId)
+          && isValidMonthlyBudget(incoming(), userId, monthId)
+          && incoming().userId == existing().userId
+          && incoming().monthKey == existing().monthKey
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            // Action: Update Monthly Budget Settings & Category Limits
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'monthlyAllowance',
+              'fixedEssentials',
+              'savingsGoal',
+              'alertThresholdPct',
+              'categoryLimits',
+              'updatedAt'
+            ])
+          )
+          && userExists(userId);
+
+        allow delete: if isOwner(userId)
+          && isValidId(userId)
+          && isValidMonthKey(monthId)
+          && userExists(userId);
+      }
+
+      // =======================================================================
+      // Subcollection: /users/{userId}/expenses/{expenseId}
+      // =======================================================================
+      match /expenses/{expenseId} {
+        allow get: if isOwner(userId)
+          && isValidId(userId)
+          && isValidId(expenseId)
+          && userExists(userId);
+
+        allow list: if isOwner(userId)
+          && existing().userId == request.auth.uid;
+
+        allow create: if isOwner(userId)
+          && isValidId(userId)
+          && isValidId(expenseId)
+          && isValidExpense(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userExistsAfter(userId);
+
+        allow update: if isOwner(userId)
+          && isValidId(userId)
+          && isValidId(expenseId)
+          && isValidExpense(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            // Action: Edit Expense Details
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'monthKey',
+              'title',
+              'amount',
+              'category',
+              'paymentMethod',
+              'spendType',
+              'date',
+              'notes',
+              'updatedAt'
+            ])
+          )
+          && userExists(userId);
+
+        allow delete: if isOwner(userId)
+          && isValidId(userId)
+          && isValidId(expenseId)
+          && userExists(userId);
+      }
+    }
+  }
+}

@@ -1,0 +1,224 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private student profile and preferences for Bachat Karo.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID matching the document ID."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Student display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200,
+          "description": "Verified Google account email (private PII)."
+        },
+        "city": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Student city such as Dehradun, Delhi NCR, Bengaluru, Pune, Mumbai, or Kolkata."
+        },
+        "livingType": {
+          "type": "string",
+          "enum": ["hostel", "pg", "rented_flat", "home"],
+          "description": "Student accommodation type."
+        },
+        "onboardingComplete": {
+          "type": "boolean",
+          "description": "Whether initial allowance setup has been completed."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of profile creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last profile update."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "email",
+        "city",
+        "livingType",
+        "onboardingComplete",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MonthlyBudget": {
+      "title": "MonthlyBudget",
+      "description": "Monthly allowance, fixed essentials, savings goal, and per-category caps for a given YYYY-MM month.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner UID."
+        },
+        "monthKey": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 7,
+          "pattern": "^[0-9]{4}-[0-9]{2}$",
+          "description": "Budget month identifier in YYYY-MM format."
+        },
+        "monthlyAllowance": {
+          "type": "number",
+          "description": "Total fixed monthly allowance or stipend in INR."
+        },
+        "fixedEssentials": {
+          "type": "number",
+          "description": "Committed monthly essentials such as hostel rent, PG fees, or mess charges in INR."
+        },
+        "savingsGoal": {
+          "type": "number",
+          "description": "Target monthly savings (Bachat goal) in INR."
+        },
+        "alertThresholdPct": {
+          "type": "number",
+          "description": "Percentage threshold (50-100) at which warning alerts trigger."
+        },
+        "categoryLimits": {
+          "type": "object",
+          "description": "Monthly INR caps per spending category (food, transport, study, hostel, social, shopping, misc)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of budget creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last budget update."
+        }
+      },
+      "required": [
+        "userId",
+        "monthKey",
+        "monthlyAllowance",
+        "fixedEssentials",
+        "savingsGoal",
+        "alertThresholdPct",
+        "categoryLimits",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "An individual daily student expense entry.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner UID."
+        },
+        "monthKey": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 7,
+          "pattern": "^[0-9]{4}-[0-9]{2}$",
+          "description": "YYYY-MM month key derived from the expense date."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Short expense description (e.g. Canteen Lunch, Auto to Campus)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Expense amount in INR (> 0 and <= 500000)."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["food", "transport", "study", "hostel", "social", "shopping", "misc"],
+          "description": "Student expense category."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["upi", "cash", "card"],
+          "description": "Payment mode used."
+        },
+        "spendType": {
+          "type": "string",
+          "enum": ["essential", "discretionary"],
+          "description": "Whether the expense is essential or discretionary."
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Expense date in YYYY-MM-DD format."
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 200,
+          "description": "Optional note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of expense creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last expense update."
+        }
+      },
+      "required": [
+        "userId",
+        "monthKey",
+        "title",
+        "amount",
+        "category",
+        "paymentMethod",
+        "spendType",
+        "date",
+        "notes",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile and onboarding state. Readable and writable strictly by the owning authenticated user."
+    },
+    "/users/{userId}/budgets/{monthId}": {
+      "schema": { "$ref": "#/entities/MonthlyBudget" },
+      "description": "Monthly allowance, fixed essentials, savings goal, and category caps keyed by YYYY-MM."
+    },
+    "/users/{userId}/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "Student daily expense records owned by the user."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Bachat Karo",
+  "description": "Student budgeting and daily expense tracker that turns your monthly allowance into a safe daily spending limit with custom real-time analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
